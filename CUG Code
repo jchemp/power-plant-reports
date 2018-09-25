@@ -1,0 +1,576 @@
+Private Sub TextBox1_KeyDown(KeyCode As Integer, Shift As Integer)
+
+' This function is just to allow user to hit the Enter key to submit their Ensuite Credentials
+
+    If KeyCode = 13 Then
+         cmdOK_Click
+    End If
+End Sub
+
+
+Private Sub UserForm_Initialize()
+  
+' Getting dropdown list in form to populate with month selections
+
+    Dim DateName As Variant
+    DateName = VBA.Array(Format(Date, "mmmm-yyyy"), Format(DateAdd("m", -1, Date), "mmmm-yyyy") _
+    , Format(DateAdd("m", -2, Date), "mmmm-yyyy"), Format(DateAdd("m", -3, Date), "mmmm-yyyy") _
+    , Format(DateAdd("m", -4, Date), "mmmm-yyyy"), Format(DateAdd("m", -5, Date), "mmmm-yyyy") _
+    , Format(DateAdd("m", -6, Date), "mmmm-yyyy"), Format(DateAdd("m", -7, Date), "mmmm-yyyy") _
+    , Format(DateAdd("m", -8, Date), "mmmm-yyyy"), Format(DateAdd("m", -9, Date), "mmmm-yyyy") _
+    , Format(DateAdd("m", -10, Date), "mmmm-yyyy"), Format(DateAdd("m", -11, Date), "mmmm-yyyy") _
+    , Format(DateAdd("m", -12, Date), "mmmm-yyyy"), Format(DateAdd("m", -13, Date), "mmmm-yyyy") _
+    , Format(DateAdd("m", -14, Date), "mmmm-yyyy"), Format(DateAdd("m", -15, Date), "mmmm-yyyy") _
+    , Format(DateAdd("m", -16, Date), "mmmm-yyyy"), Format(DateAdd("m", -17, Date), "mmmm-yyyy") _
+    , Format(DateAdd("m", -18, Date), "mmmm-yyyy"), Format(DateAdd("m", -19, Date), "mmmm-yyyy") _
+    , Format(DateAdd("m", -20, Date), "mmmm-yyyy"), Format(DateAdd("m", -21, Date), "mmmm-yyyy") _
+    , Format(DateAdd("m", -22, Date), "mmmm-yyyy"), Format(DateAdd("m", -23, Date), "mmmm-yyyy") _
+    , Format(DateAdd("m", -24, Date), "mmmm-yyyy"))
+
+    With input_StartDate
+           .Clear
+           .List = DateName
+           .ListIndex = -1
+    End With
+
+    With input_EndDate
+           .Clear
+           .List = DateName
+           .ListIndex = -1
+    End With
+
+End Sub
+
+Private Sub cmdOK_Click()
+
+Dim relativePath As String
+
+'Set Object to Connect to Database'
+Set objSession = CreateObject("OracleinProcServer.XOraSession")
+Set objdatabase = objSession.OpenDatabase("ENSUIT1P", input_UserID & "/" & input_Password, 0)
+                
+' Close the UserForm.
+Unload Me
+
+'Screen updating Off
+Application.ScreenUpdating = False
+Application.DisplayAlerts = False
+
+'Begin Settlements Run'
+'Clear Previous Data
+Sheets("Settlements Data").Select
+With Sheets("Settlements Data")
+    .Rows(46 & ":" & .Rows.Count).Delete
+End With
+
+
+Dim format_input_StartDate As String
+Dim format_input_EndDate As String
+format_input_StartDate = Format(DateSerial(Year(input_StartDate), Month(input_StartDate), 1), "dd-mmm-yyyy")
+format_input_EndDate = Format(DateSerial(Year(input_EndDate), Month(input_EndDate) + 1, 1) - 1, "dd-mmm-yyyy")
+
+'Enter SQL Statement'
+strSQL = " WITH DATE_DETAILS AS ( "
+strSQL = strSQL & " SELECT trade_Date "
+strSQL = strSQL & " , BA_ID "
+strSQL = strSQL & " , max(messageheaderid) messageheaderid  "
+strSQL = strSQL & " , CASE WHEN run_description LIKE 'MONTHLY%' THEN 'Monthly' ELSE 'Daily' END AS Freq "
+strSQL = strSQL & " FROM messageheader "
+strSQL = strSQL & " WHERE trade_date BETWEEN '" & Format(DateSerial(Year(input_StartDate), Month(input_StartDate), 1), "dd-mmm-yyyy") & "' AND '" & Format(DateSerial(Year(input_EndDate), Month(input_EndDate) + 1, 1) - 1, "dd-mmm-yyyy") & "' "
+strSQL = strSQL & " AND file_type = 'DETERMINANTS' "
+strSQL = strSQL & " GROUP BY trade_Date, BA_ID, CASE WHEN run_description LIKE 'MONTHLY%' THEN 'Monthly' ELSE 'Daily' END) "
+strSQL = strSQL & " SELECT AREA  "
+strSQL = strSQL & " , RESOURCE_NAME  "
+strSQL = strSQL & " , RESOURCE_TYPE  "
+strSQL = strSQL & " , PRIORITY  "
+strSQL = strSQL & " , SUM(NVL(to_number(CC6011_Non_Contract),0) + NVL(to_number(CC6011_Contract),0) + NVL(to_number(CC6460),0) + NVL(to_number(CC6470),0) + NVL(to_number(CC6475),0) + NVL(to_number(CC6482),0) + NVL(to_number(CC6488),0) + NVL(to_number(CC6630),0) + NVL(to_number(CC6620),0)) AS Total_Energy_Amount  "
+strSQL = strSQL & " , SUM(NVL(to_number(CC6100),0) + NVL(to_number(CC6124),0) + NVL(to_number(CC6170),0) + NVL(to_number(CC6200),0) + NVL(to_number(CC6224),0) + NVL(to_number(CC6270),0) + NVL(to_number(CC6500),0) + NVL(to_number(CC6524),0) + NVL(to_number(CC6570),0) + NVL(to_number(CC6600),0) + NVL(to_number(CC6624),0) + NVL(to_number(CC6670),0) + NVL(to_number(CC7251),0) + NVL(to_number(CC7261),0) + NVL(to_number(CC7070_Total_Settlement),0)  "
+strSQL = strSQL & " + NVL(to_number(CC7071_Total_Settlement),0) + NVL(to_number(CC7081_Total_Settlement),0) + NVL(to_number(CC7077),0) + ((-1*NVL(to_number(CC7077),0))+ NVL(to_number(CC7078_Off_Peak),0) + NVL(to_number(CC7078_Peak),0)) + NVL(to_number(CC7087),0) + ((-1*NVL(to_number(CC7087),0))+ NVL(to_number(CC7088_Off_Peak),0)   "
+strSQL = strSQL & " + NVL(to_number(CC7088_Peak),0)) + NVL(to_number(CC8831),0) + NVL(to_number(CC8830),0)) AS Total_Capacity_Amount  "
+strSQL = strSQL & " , SUM(NVL(to_number(Total_DA_MWh),0)) AS Total_DA_MWh  "
+strSQL = strSQL & " , SUM(NVL(to_number(Total_FMM_MWh),0)+NVL(to_number(Total_IIE_MWh),0)) AS Total_RTM_MWh  "
+strSQL = strSQL & " , SUM(NVL(to_number(Total_Output_MWh),0)) AS Total_Output_MWh  "
+strSQL = strSQL & " , SUM(NVL(to_number(Uninstructed_MWh_Gross),0)) AS Uninstructed_MWh_Gross  "
+strSQL = strSQL & " , SUM(NVL(to_number(CC6475),0)) AS CC6475  "
+strSQL = strSQL & " , SUM(NVL(to_number(CC6100),0)+NVL(to_number(CC6170),0)) AS CC6100_6170  "
+strSQL = strSQL & " , SUM(NVL(to_number(CC6200),0)+NVL(to_number(CC6270),0)) AS CC6200_6270  "
+strSQL = strSQL & " , SUM(NVL(to_number(CC6500),0)+NVL(to_number(CC6570),0)) AS CC6500_6570  "
+strSQL = strSQL & " , SUM(NVL(to_number(CC6600),0)+NVL(to_number(CC6670),0)) AS CC6600_6670  "
+strSQL = strSQL & " , SUM(NVL(to_number(CC6124),0)+NVL(to_number(CC6224),0)+NVL(to_number(CC6524),0)+NVL(to_number(CC6624),0)) AS Net_No_Pay  "
+strSQL = strSQL & " , SUM(NVL(to_number(CC7070_Total_Settlement),0)) AS CC7070  "
+strSQL = strSQL & " , SUM(NVL(to_number(CC7071_Total_Settlement),0)) AS CC7071    "
+strSQL = strSQL & " , SUM(((-1*NVL(to_number(CC7077),0))+ NVL(to_number(CC7078_Off_Peak),0) + NVL(to_number(CC7078_Peak),0))) AS CC7078   "
+strSQL = strSQL & " , SUM(NVL(to_number(CC7081_Total_Settlement),0)) AS CC7081  "
+strSQL = strSQL & " , SUM(((-1*NVL(to_number(CC7087),0))+ NVL(to_number(CC7088_Off_Peak),0) + NVL(to_number(CC7088_Peak),0))) AS CC7088  "
+strSQL = strSQL & " , SUM(NVL(to_number(CC8831),0)+NVL(to_number(CC8830),0)) AS RAAIM  "
+strSQL = strSQL & " FROM   "
+strSQL = strSQL & " (SELECT CASE WHEN resource_name = 'PNCHEG_2_PL1X4' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'COCOPP_2_CTG1' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'COCOPP_2_CTG2' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'COCOPP_2_CTG3' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'COCOPP_2_CTG4' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'PNCHPP_1_PL1X2' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'KELSO_2_UNITS' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'GRNLF1_1_UNITS' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'BOGUE_1_UNITA1' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'OMAR_2_UNIT 1' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'OMAR_2_UNIT 2' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'OMAR_2_UNIT 3' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'OMAR_2_UNIT 4' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'LIVOAK_1_UNIT 1' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'CHALK_1_UNIT' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'BEARMT_1_UNIT' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'BDGRCK_1_UNITS' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'SMPRIP_1_SMPSON' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'GWFPWR_1_UNITS' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'MKTRCK_1_UNIT 1' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'GILRPP_1_PL1X2' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'LECEF_1_UNITS' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'SUNSET_2_UNITS' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'DOUBLC_1_UNITS' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'KERNFT_1_UNITS' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'SIERRA_1_UNITS' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'GILRPP_1_PL3X4' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'KNGCTY_6_UNITA1' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'LMBEPK_2_UNITA1' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'LMBEPK_2_UNITA2' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'LMBEPK_2_UNITA3' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'RVRVEW_1_UNITA1' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'WOLFSK_1_UNITA1' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'YUBACT_6_UNITA1' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'HENRTA_6_UNITA1' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'HENRTA_6_UNITA2' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'CALPIN_1_AGNEW' THEN 'GTUR'  "
+strSQL = strSQL & " WHEN resource_name = 'OROVIL_6_UNIT' THEN 'RECP'  "
+strSQL = strSQL & " WHEN resource_name = 'RUSCTY_2_UNITS' THEN 'CCYC'  "
+strSQL = strSQL & " WHEN resource_name = 'SCHLTE_1_PL1X3' THEN 'CCYC' "
+strSQL = strSQL & " WHEN resource_name = 'BASICE_2_UNITS' THEN 'QF' "
+strSQL = strSQL & " WHEN resource_name = 'CROKET_7_UNIT' THEN 'QF' "
+strSQL = strSQL & " WHEN resource_name = 'GRNLF2_1_UNIT' THEN 'QF' "
+strSQL = strSQL & " WHEN resource_name = 'DISCOV_1_CHEVRN' THEN 'QF'  "
+strSQL = strSQL & " ELSE 'ERROR' END AS AREA  "
+strSQL = strSQL & " , CASE WHEN resource_name = 'PNCHEG_2_PL1X4' THEN 'Panoche'  "
+strSQL = strSQL & " WHEN resource_name = 'COCOPP_2_CTG1' THEN 'Marsh Landing U1'  "
+strSQL = strSQL & " WHEN resource_name = 'COCOPP_2_CTG2' THEN 'Marsh Landing U2'  "
+strSQL = strSQL & " WHEN resource_name = 'COCOPP_2_CTG3' THEN 'Marsh Landing U3'  "
+strSQL = strSQL & " WHEN resource_name = 'COCOPP_2_CTG4' THEN 'Marsh Landing U4'  "
+strSQL = strSQL & " WHEN resource_name = 'PNCHPP_1_PL1X2' THEN 'Midway Peaking'  "
+strSQL = strSQL & " WHEN resource_name = 'KELSO_2_UNITS' THEN 'Mariposa'  "
+strSQL = strSQL & " WHEN resource_name = 'GRNLF1_1_UNITS' THEN 'Greenleaf'  "
+strSQL = strSQL & " WHEN resource_name = 'BOGUE_1_UNITA1' THEN 'Feather River'  "
+strSQL = strSQL & " WHEN resource_name = 'OMAR_2_UNIT 1' THEN 'Kern River U1'  "
+strSQL = strSQL & " WHEN resource_name = 'OMAR_2_UNIT 2' THEN 'Kern River U2'  "
+strSQL = strSQL & " WHEN resource_name = 'OMAR_2_UNIT 3' THEN 'Kern River U3'  "
+strSQL = strSQL & " WHEN resource_name = 'OMAR_2_UNIT 4' THEN 'Kern River U4'  "
+strSQL = strSQL & " WHEN resource_name = 'LIVOAK_1_UNIT 1' THEN 'Live Oak'  "
+strSQL = strSQL & " WHEN resource_name = 'CHALK_1_UNIT' THEN 'Chalk Cliff'  "
+strSQL = strSQL & " WHEN resource_name = 'BEARMT_1_UNIT' THEN 'Bear Mountain'  "
+strSQL = strSQL & " WHEN resource_name = 'BDGRCK_1_UNITS' THEN 'Badger Creek'  "
+strSQL = strSQL & " WHEN resource_name = 'SMPRIP_1_SMPSON' THEN 'Ripon'  "
+strSQL = strSQL & " WHEN resource_name = 'GWFPWR_1_UNITS' THEN 'Hanford'  "
+strSQL = strSQL & " WHEN resource_name = 'MKTRCK_1_UNIT 1' THEN 'McKittrick'  "
+strSQL = strSQL & " WHEN resource_name = 'GILRPP_1_PL1X2' THEN 'Gilroy U1 and U2'  "
+strSQL = strSQL & " WHEN resource_name = 'LECEF_1_UNITS' THEN 'Los Esteros'  "
+strSQL = strSQL & " WHEN resource_name = 'SUNSET_2_UNITS' THEN 'Midway Sunset'  "
+strSQL = strSQL & " WHEN resource_name = 'DOUBLC_1_UNITS' THEN 'Double C'  "
+strSQL = strSQL & " WHEN resource_name = 'KERNFT_1_UNITS' THEN 'Kern Front'  "
+strSQL = strSQL & " WHEN resource_name = 'SIERRA_1_UNITS' THEN 'High Sierra'  "
+strSQL = strSQL & " WHEN resource_name = 'GILRPP_1_PL3X4' THEN 'Gilroy Energy U3'  "
+strSQL = strSQL & " WHEN resource_name = 'KNGCTY_6_UNITA1' THEN 'King City U1'  "
+strSQL = strSQL & " WHEN resource_name = 'LMBEPK_2_UNITA1' THEN 'Lambie U1'  "
+strSQL = strSQL & " WHEN resource_name = 'LMBEPK_2_UNITA2' THEN 'Creed U1'  "
+strSQL = strSQL & " WHEN resource_name = 'LMBEPK_2_UNITA3' THEN 'Goose Haven U1'  "
+strSQL = strSQL & " WHEN resource_name = 'RVRVEW_1_UNITA1' THEN 'Riverview'  "
+strSQL = strSQL & " WHEN resource_name = 'WOLFSK_1_UNITA1' THEN 'Wolfskill'  "
+strSQL = strSQL & " WHEN resource_name = 'YUBACT_6_UNITA1' THEN 'Yuba City'  "
+strSQL = strSQL & " WHEN resource_name = 'HENRTA_6_UNITA1' THEN 'Henrietta Peaker U1'  "
+strSQL = strSQL & " WHEN resource_name = 'HENRTA_6_UNITA2' THEN 'Henrietta Peaker U2'  "
+strSQL = strSQL & " WHEN resource_name = 'CALPIN_1_AGNEW' THEN 'Agnews'  "
+strSQL = strSQL & " WHEN resource_name = 'OROVIL_6_UNIT' THEN 'Oroville'  "
+strSQL = strSQL & " WHEN resource_name = 'RUSCTY_2_UNITS' THEN 'Russell City'  "
+strSQL = strSQL & " WHEN resource_name = 'SCHLTE_1_PL1X3' THEN 'Tracy' "
+strSQL = strSQL & " WHEN resource_name = 'BASICE_2_UNITS' THEN 'Calpine American' "
+strSQL = strSQL & " WHEN resource_name = 'CROKET_7_UNIT' THEN 'Crockett' "
+strSQL = strSQL & " WHEN resource_name = 'GRNLF2_1_UNIT' THEN 'Greenleaf II' "
+strSQL = strSQL & " WHEN resource_name = 'DISCOV_1_CHEVRN' THEN 'Chevron' "
+strSQL = strSQL & " ELSE 'ERROR' END AS RESOURCE_NAME  "
+strSQL = strSQL & " , CASE WHEN resource_name = 'PNCHEG_2_PL1X4' THEN '1'  "
+strSQL = strSQL & " WHEN resource_name = 'COCOPP_2_CTG1' THEN '2'  "
+strSQL = strSQL & " WHEN resource_name = 'COCOPP_2_CTG2' THEN '3'  "
+strSQL = strSQL & " WHEN resource_name = 'COCOPP_2_CTG3' THEN '4'  "
+strSQL = strSQL & " WHEN resource_name = 'COCOPP_2_CTG4' THEN '5'  "
+strSQL = strSQL & " WHEN resource_name = 'PNCHPP_1_PL1X2' THEN '6'  "
+strSQL = strSQL & " WHEN resource_name = 'KELSO_2_UNITS' THEN '7'  "
+strSQL = strSQL & " WHEN resource_name = 'GRNLF1_1_UNITS' THEN '8'  "
+strSQL = strSQL & " WHEN resource_name = 'BOGUE_1_UNITA1' THEN '9'  "
+strSQL = strSQL & " WHEN resource_name = 'OMAR_2_UNIT 1' THEN '10'  "
+strSQL = strSQL & " WHEN resource_name = 'OMAR_2_UNIT 2' THEN '11'  "
+strSQL = strSQL & " WHEN resource_name = 'OMAR_2_UNIT 3' THEN '12'  "
+strSQL = strSQL & " WHEN resource_name = 'OMAR_2_UNIT 4' THEN '13'  "
+strSQL = strSQL & " WHEN resource_name = 'LIVOAK_1_UNIT 1' THEN '14'  "
+strSQL = strSQL & " WHEN resource_name = 'CHALK_1_UNIT' THEN '15'  "
+strSQL = strSQL & " WHEN resource_name = 'BEARMT_1_UNIT' THEN '16'  "
+strSQL = strSQL & " WHEN resource_name = 'BDGRCK_1_UNITS' THEN '17'  "
+strSQL = strSQL & " WHEN resource_name = 'SMPRIP_1_SMPSON' THEN '18'  "
+strSQL = strSQL & " WHEN resource_name = 'GWFPWR_1_UNITS' THEN '19'  "
+strSQL = strSQL & " WHEN resource_name = 'MKTRCK_1_UNIT 1' THEN '20'  "
+strSQL = strSQL & " WHEN resource_name = 'GILRPP_1_PL1X2' THEN '21'  "
+strSQL = strSQL & " WHEN resource_name = 'LECEF_1_UNITS' THEN '22'  "
+strSQL = strSQL & " WHEN resource_name = 'SUNSET_2_UNITS' THEN '23'  "
+strSQL = strSQL & " WHEN resource_name = 'DOUBLC_1_UNITS' THEN '24'  "
+strSQL = strSQL & " WHEN resource_name = 'KERNFT_1_UNITS' THEN '25'  "
+strSQL = strSQL & " WHEN resource_name = 'SIERRA_1_UNITS' THEN '26'  "
+strSQL = strSQL & " WHEN resource_name = 'GILRPP_1_PL3X4' THEN '27'  "
+strSQL = strSQL & " WHEN resource_name = 'KNGCTY_6_UNITA1' THEN '28'  "
+strSQL = strSQL & " WHEN resource_name = 'LMBEPK_2_UNITA1' THEN '29'  "
+strSQL = strSQL & " WHEN resource_name = 'LMBEPK_2_UNITA2' THEN '30'  "
+strSQL = strSQL & " WHEN resource_name = 'LMBEPK_2_UNITA3' THEN '31'  "
+strSQL = strSQL & " WHEN resource_name = 'RVRVEW_1_UNITA1' THEN '32'  "
+strSQL = strSQL & " WHEN resource_name = 'WOLFSK_1_UNITA1' THEN '33'  "
+strSQL = strSQL & " WHEN resource_name = 'YUBACT_6_UNITA1' THEN '34'  "
+strSQL = strSQL & " WHEN resource_name = 'HENRTA_6_UNITA1' THEN '35'  "
+strSQL = strSQL & " WHEN resource_name = 'HENRTA_6_UNITA2' THEN '36'  "
+strSQL = strSQL & " WHEN resource_name = 'CALPIN_1_AGNEW' THEN '37'  "
+strSQL = strSQL & " WHEN resource_name = 'OROVIL_6_UNIT' THEN '38'  "
+strSQL = strSQL & " WHEN resource_name = 'RUSCTY_2_UNITS' THEN '39'  "
+strSQL = strSQL & " WHEN resource_name = 'SCHLTE_1_PL1X3' THEN '40'  "
+strSQL = strSQL & " WHEN resource_name = 'BASICE_2_UNITS' THEN '41' "
+strSQL = strSQL & " WHEN resource_name = 'CROKET_7_UNIT' THEN '42' "
+strSQL = strSQL & " WHEN resource_name = 'GRNLF2_1_UNIT' THEN '43' "
+strSQL = strSQL & " WHEN resource_name = 'DISCOV_1_CHEVRN' THEN '44' "
+strSQL = strSQL & " ELSE 'ERROR' END AS PRIORITY  "
+strSQL = strSQL & " , RESOURCE_TYPE  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_5M_RSRC_DA_SCHD@QUANTITY'  THEN SUM(total) END AS Total_DA_MWh  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_5M_RSRC_FMM_IIE_STLMT_RTPG@QUANTITY'  THEN SUM(total) END AS Total_FMM_MWh  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_5M_RSRC_IIE@QUANTITY'  THEN SUM(total) END AS Total_IIE_MWh  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_5M_RSRC_METER_ENGY@QUANTITY'  THEN SUM(total) END AS Total_Output_MWh  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_5M_RSRC_TOT_UIE@QUANTITY' THEN SUM(total) END AS Uninstructed_MWh_Gross  "
+strSQL = strSQL & " , CASE WHEN name = 'RSRC_HRLY_DA_ENGY_LMP_NON_CONTRACT@AMOUNT' THEN -1*SUM(total) END AS CC6011_Non_Contract  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_HRLY_DA_ENGY_CONTRACT@AMOUNT' THEN -1*SUM(total) END AS CC6011_Contract  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_5M_RSRC_FMM_IIE_STLMT@AMOUNT' THEN -1*SUM(total) END AS CC6460  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_5M_RSRC_IIE@AMOUNT' THEN -1*SUM(total) END AS CC6470  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_5M_RSRC_UIE@AMOUNT' THEN -1*SUM(total) END AS CC6475  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_5M_RSRC_ED_TYPE_EX_COST_IIE_STLMT@AMOUNT' THEN -1*SUM(total) END AS CC6482  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_5M_RSRC_EXCP_DISP@AMOUNT' THEN -1*SUM(total) END AS CC6488  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_DAY_RSRC_OR_MSS_IFM_BCR_STLMT@AMOUNT' THEN -1*SUM(total) END AS CC6630  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_DAY_RSRC_OR_MSS_BCR_STLMT@AMOUNT' THEN -1*SUM(total) END AS CC6620  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_HRLY_RSRC_DA_SPIN_STLMT@AMOUNT' THEN -1*SUM(total) END AS CC6100  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_5M_RSRC_NOPAY_SPIN_STLMT@AMOUNT' THEN -1*SUM(total) END AS CC6124  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_15M_RT_SPIN_STLMT@AMOUNT' THEN -1*SUM(total) END AS CC6170  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_HRLY_RSRC_DA_NSPN_STLMT@AMOUNT' THEN -1*SUM(total) END AS CC6200  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_5M_RSRC_NOPAY_NSPN_STLMT@AMOUNT' THEN -1*SUM(total) END AS CC6224  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_15M_RSRC_RT_NSPN_STLMT@AMOUNT' THEN -1*SUM(total) END AS CC6270  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_HRLY_RSRC_DA_REGUP@AMOUNT' THEN -1*SUM(total) END AS CC6500  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_5M_RSRC_NOPAY_REGUP@AMOUNT' THEN -1*SUM(total) END AS CC6524  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_15M_RSRC_RT_REGUP_STLMT@AMOUNT' THEN -1*SUM(total) END AS CC6570  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_HRLY_RSRC_DA_REGDOWN@AMOUNT' THEN -1*SUM(total) END AS CC6600  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_5M_RSRC_NOPAY_REGDOWN_STLMT@AMOUNT' THEN -1*SUM(total) END AS CC6624  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_15M_RSRC_RT_REGDOWN@AMOUNT' THEN -1*SUM(total) END AS CC6670  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_15M_RSRC_REGUP_MILEAGE_STLMT@AMOUNT' THEN -1*SUM(total) END AS CC7251  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_15M_RSRC_REGDOWN_MILEAGE_STLMT@AMOUNT' THEN -1*SUM(total) END AS CC7261  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_5M_RSRC_TOT_FR_FCAST_MVMT@AMOUNT' THEN -1*SUM(total) END AS CC7070_Total_Settlement  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_5M_RSRC_TOT_FRU_UNCERT_STLMT@AMOUNT' THEN -1*SUM(total) END AS CC7071_Total_Settlement  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_5M_RSRC_TOT_FRD_UNCERT_STLMT@AMOUNT' THEN -1*SUM(total) END AS CC7081_Total_Settlement  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_5M_RSRC_BAA_SUPPLY_FRU_UNCERT_ALLOC@AMOUNT' THEN -1*SUM(total) END AS CC7077   "
+strSQL = strSQL & " , CASE WHEN name = 'BA_5M_RSRC_BAA_SUPPLY_FRD_UNCERT_ALLOC@AMOUNT' THEN -1*SUM(total) END AS CC7087   "
+strSQL = strSQL & " , CASE WHEN name = 'BA_MTH_RSRC_BAA_OFFP_SUPPLY_FRU_UNCERT_ALLOC@AMOUNT' THEN -1*SUM(total) END AS CC7078_Off_Peak   "
+strSQL = strSQL & " , CASE WHEN name = 'BA_MTH_RSRC_BAA_PEAK_SUPPLY_FRU_UNCERT_ALLOC@AMOUNT' THEN -1*SUM(total) END AS CC7078_Peak   "
+strSQL = strSQL & " , CASE WHEN name = 'BA_MTH_RSRC_BAA_OFFP_SUPPLY_FRD_UNCERT_ALLOC@AMOUNT' THEN -1*SUM(total) END AS CC7088_Off_Peak   "
+strSQL = strSQL & " , CASE WHEN name = 'BA_MTH_RSRC_BAA_PEAK_SUPPLY_FRD_UNCERT_ALLOC@AMOUNT' THEN -1*SUM(total) END AS CC7088_Peak   "
+strSQL = strSQL & " , CASE WHEN name = 'BA_MTH_RSRC_TOT_RAAIM_INCV_STLMT@AMOUNT' THEN -1*SUM(total) END AS CC8831  "
+strSQL = strSQL & " , CASE WHEN name = 'BA_MTH_RSRC_TOT_RAAIM_NON_AVAIL_STLMT@AMOUNT' THEN -1*SUM(total) END AS CC8830        "
+strSQL = strSQL & " FROM   "
+strSQL = strSQL & " ((SELECT /*+PARALLEL_INDEX(a, 50)*/ a.attributevalue2 AS resource_name  "
+strSQL = strSQL & " , CASE WHEN a.name IN ('BA_DAY_RSRC_OR_MSS_IFM_BCR_STLMT@AMOUNT','BA_DAY_RSRC_OR_MSS_BCR_STLMT@AMOUNT') THEN 'GEN'  "
+strSQL = strSQL & " ELSE a.attributevalue3 END AS resource_type  "
+strSQL = strSQL & " , CASE WHEN a.name IN ('BA_5M_RSRC_TOT_UIE@QUANTITY') THEN     "
+strSQL = strSQL & " ABS(NVL(a.int001,0)) + ABS(NVL(a.int002,0)) + ABS(NVL(a.int003,0)) + ABS(NVL(a.int004,0)) + ABS(NVL(a.int005,0)) + ABS(NVL(a.int006,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int007,0)) + ABS(NVL(a.int008,0)) + ABS(NVL(a.int009,0)) + ABS(NVL(a.int010,0)) + ABS(NVL(a.int011,0)) + ABS(NVL(a.int012,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int013,0)) + ABS(NVL(a.int014,0)) + ABS(NVL(a.int015,0)) + ABS(NVL(a.int016,0)) + ABS(NVL(a.int017,0)) + ABS(NVL(a.int018,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int019,0)) + ABS(NVL(a.int020,0)) + ABS(NVL(a.int021,0)) + ABS(NVL(a.int022,0)) + ABS(NVL(a.int023,0)) + ABS(NVL(a.int024,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int025,0)) + ABS(NVL(a.int026,0)) + ABS(NVL(a.int027,0)) + ABS(NVL(a.int028,0)) + ABS(NVL(a.int029,0)) + ABS(NVL(a.int030,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int031,0)) + ABS(NVL(a.int032,0)) + ABS(NVL(a.int033,0)) + ABS(NVL(a.int034,0)) + ABS(NVL(a.int035,0)) + ABS(NVL(a.int036,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int037,0)) + ABS(NVL(a.int038,0)) + ABS(NVL(a.int039,0)) + ABS(NVL(a.int040,0)) + ABS(NVL(a.int041,0)) + ABS(NVL(a.int042,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int043,0)) + ABS(NVL(a.int044,0)) + ABS(NVL(a.int045,0)) + ABS(NVL(a.int046,0)) + ABS(NVL(a.int047,0)) + ABS(NVL(a.int048,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int049,0)) + ABS(NVL(a.int050,0)) + ABS(NVL(a.int051,0)) + ABS(NVL(a.int052,0)) + ABS(NVL(a.int053,0)) + ABS(NVL(a.int054,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int055,0)) + ABS(NVL(a.int056,0)) + ABS(NVL(a.int057,0)) + ABS(NVL(a.int058,0)) + ABS(NVL(a.int059,0)) + ABS(NVL(a.int060,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int061,0)) + ABS(NVL(a.int062,0)) + ABS(NVL(a.int063,0)) + ABS(NVL(a.int064,0)) + ABS(NVL(a.int065,0)) + ABS(NVL(a.int066,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int067,0)) + ABS(NVL(a.int068,0)) + ABS(NVL(a.int069,0)) + ABS(NVL(a.int070,0)) + ABS(NVL(a.int071,0)) + ABS(NVL(a.int072,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int073,0)) + ABS(NVL(a.int074,0)) + ABS(NVL(a.int075,0)) + ABS(NVL(a.int076,0)) + ABS(NVL(a.int077,0)) + ABS(NVL(a.int078,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int079,0)) + ABS(NVL(a.int080,0)) + ABS(NVL(a.int081,0)) + ABS(NVL(a.int082,0)) + ABS(NVL(a.int083,0)) + ABS(NVL(a.int084,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int085,0)) + ABS(NVL(a.int086,0)) + ABS(NVL(a.int087,0)) + ABS(NVL(a.int088,0)) + ABS(NVL(a.int089,0)) + ABS(NVL(a.int090,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int091,0)) + ABS(NVL(a.int092,0)) + ABS(NVL(a.int093,0)) + ABS(NVL(a.int094,0)) + ABS(NVL(a.int095,0)) + ABS(NVL(a.int096,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int097,0)) + ABS(NVL(a.int098,0)) + ABS(NVL(a.int099,0)) + ABS(NVL(a.int100,0)) + ABS(NVL(a.int101,0)) + ABS(NVL(a.int102,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int103,0)) + ABS(NVL(a.int104,0)) + ABS(NVL(a.int105,0)) + ABS(NVL(a.int106,0)) + ABS(NVL(a.int107,0)) + ABS(NVL(a.int108,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int109,0)) + ABS(NVL(a.int110,0)) + ABS(NVL(a.int111,0)) + ABS(NVL(a.int112,0)) + ABS(NVL(a.int113,0)) + ABS(NVL(a.int114,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int115,0)) + ABS(NVL(a.int116,0)) + ABS(NVL(a.int117,0)) + ABS(NVL(a.int118,0)) + ABS(NVL(a.int119,0)) + ABS(NVL(a.int120,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int121,0)) + ABS(NVL(a.int122,0)) + ABS(NVL(a.int123,0)) + ABS(NVL(a.int124,0)) + ABS(NVL(a.int125,0)) + ABS(NVL(a.int126,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int127,0)) + ABS(NVL(a.int128,0)) + ABS(NVL(a.int129,0)) + ABS(NVL(a.int130,0)) + ABS(NVL(a.int131,0)) + ABS(NVL(a.int132,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int133,0)) + ABS(NVL(a.int134,0)) + ABS(NVL(a.int135,0)) + ABS(NVL(a.int136,0)) + ABS(NVL(a.int137,0)) + ABS(NVL(a.int138,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int139,0)) + ABS(NVL(a.int140,0)) + ABS(NVL(a.int141,0)) + ABS(NVL(a.int142,0)) + ABS(NVL(a.int143,0)) + ABS(NVL(a.int144,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int145,0)) + ABS(NVL(a.int146,0)) + ABS(NVL(a.int147,0)) + ABS(NVL(a.int148,0)) + ABS(NVL(a.int149,0)) + ABS(NVL(a.int150,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int151,0)) + ABS(NVL(a.int152,0)) + ABS(NVL(a.int153,0)) + ABS(NVL(a.int154,0)) + ABS(NVL(a.int155,0)) + ABS(NVL(a.int156,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int157,0)) + ABS(NVL(a.int158,0)) + ABS(NVL(a.int159,0)) + ABS(NVL(a.int160,0)) + ABS(NVL(a.int161,0)) + ABS(NVL(a.int162,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int163,0)) + ABS(NVL(a.int164,0)) + ABS(NVL(a.int165,0)) + ABS(NVL(a.int166,0)) + ABS(NVL(a.int167,0)) + ABS(NVL(a.int168,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int169,0)) + ABS(NVL(a.int170,0)) + ABS(NVL(a.int171,0)) + ABS(NVL(a.int172,0)) + ABS(NVL(a.int173,0)) + ABS(NVL(a.int174,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int175,0)) + ABS(NVL(a.int176,0)) + ABS(NVL(a.int177,0)) + ABS(NVL(a.int178,0)) + ABS(NVL(a.int179,0)) + ABS(NVL(a.int180,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int181,0)) + ABS(NVL(a.int182,0)) + ABS(NVL(a.int183,0)) + ABS(NVL(a.int184,0)) + ABS(NVL(a.int185,0)) + ABS(NVL(a.int186,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int187,0)) + ABS(NVL(a.int188,0)) + ABS(NVL(a.int189,0)) + ABS(NVL(a.int190,0)) + ABS(NVL(a.int191,0)) + ABS(NVL(a.int192,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int193,0)) + ABS(NVL(a.int194,0)) + ABS(NVL(a.int195,0)) + ABS(NVL(a.int196,0)) + ABS(NVL(a.int197,0)) + ABS(NVL(a.int198,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int199,0)) + ABS(NVL(a.int200,0)) + ABS(NVL(a.int201,0)) + ABS(NVL(a.int202,0)) + ABS(NVL(a.int203,0)) + ABS(NVL(a.int204,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int205,0)) + ABS(NVL(a.int206,0)) + ABS(NVL(a.int207,0)) + ABS(NVL(a.int208,0)) + ABS(NVL(a.int209,0)) + ABS(NVL(a.int210,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int211,0)) + ABS(NVL(a.int212,0)) + ABS(NVL(a.int213,0)) + ABS(NVL(a.int214,0)) + ABS(NVL(a.int215,0)) + ABS(NVL(a.int216,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int217,0)) + ABS(NVL(a.int218,0)) + ABS(NVL(a.int219,0)) + ABS(NVL(a.int220,0)) + ABS(NVL(a.int221,0)) + ABS(NVL(a.int222,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int223,0)) + ABS(NVL(a.int224,0)) + ABS(NVL(a.int225,0)) + ABS(NVL(a.int226,0)) + ABS(NVL(a.int227,0)) + ABS(NVL(a.int228,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int229,0)) + ABS(NVL(a.int230,0)) + ABS(NVL(a.int231,0)) + ABS(NVL(a.int232,0)) + ABS(NVL(a.int233,0)) + ABS(NVL(a.int234,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int235,0)) + ABS(NVL(a.int236,0)) + ABS(NVL(a.int237,0)) + ABS(NVL(a.int238,0)) + ABS(NVL(a.int239,0)) + ABS(NVL(a.int240,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int241,0)) + ABS(NVL(a.int242,0)) + ABS(NVL(a.int243,0)) + ABS(NVL(a.int244,0)) + ABS(NVL(a.int245,0)) + ABS(NVL(a.int246,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int247,0)) + ABS(NVL(a.int248,0)) + ABS(NVL(a.int249,0)) + ABS(NVL(a.int250,0)) + ABS(NVL(a.int251,0)) + ABS(NVL(a.int252,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int253,0)) + ABS(NVL(a.int254,0)) + ABS(NVL(a.int255,0)) + ABS(NVL(a.int256,0)) + ABS(NVL(a.int257,0)) + ABS(NVL(a.int258,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int259,0)) + ABS(NVL(a.int260,0)) + ABS(NVL(a.int261,0)) + ABS(NVL(a.int262,0)) + ABS(NVL(a.int263,0)) + ABS(NVL(a.int264,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int265,0)) + ABS(NVL(a.int266,0)) + ABS(NVL(a.int267,0)) + ABS(NVL(a.int268,0)) + ABS(NVL(a.int269,0)) + ABS(NVL(a.int270,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int271,0)) + ABS(NVL(a.int272,0)) + ABS(NVL(a.int273,0)) + ABS(NVL(a.int274,0)) + ABS(NVL(a.int275,0)) + ABS(NVL(a.int276,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int277,0)) + ABS(NVL(a.int278,0)) + ABS(NVL(a.int279,0)) + ABS(NVL(a.int280,0)) + ABS(NVL(a.int281,0)) + ABS(NVL(a.int282,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int283,0)) + ABS(NVL(a.int284,0)) + ABS(NVL(a.int285,0)) + ABS(NVL(a.int286,0)) + ABS(NVL(a.int287,0)) + ABS(NVL(a.int288,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int289,0)) + ABS(NVL(a.int290,0)) + ABS(NVL(a.int291,0)) + ABS(NVL(a.int292,0)) + ABS(NVL(a.int293,0)) + ABS(NVL(a.int294,0)) +   "
+strSQL = strSQL & " ABS(NVL(a.int295,0)) + ABS(NVL(a.int296,0)) + ABS(NVL(a.int297,0)) + ABS(NVL(a.int298,0)) + ABS(NVL(a.int299,0)) + ABS(NVL(a.int300,0))   "
+strSQL = strSQL & " ELSE NVL(a.int001,0) + NVL(a.int002,0) + NVL(a.int003,0) + NVL(a.int004,0) + NVL(a.int005,0) + NVL(a.int006,0) +    "
+strSQL = strSQL & " NVL(a.int007,0) + NVL(a.int008,0) + NVL(a.int009,0) + NVL(a.int010,0) + NVL(a.int011,0) + NVL(a.int012,0) +    "
+strSQL = strSQL & " NVL(a.int013,0) + NVL(a.int014,0) + NVL(a.int015,0) + NVL(a.int016,0) + NVL(a.int017,0) + NVL(a.int018,0) +    "
+strSQL = strSQL & " NVL(a.int019,0) + NVL(a.int020,0) + NVL(a.int021,0) + NVL(a.int022,0) + NVL(a.int023,0) + NVL(a.int024,0) +    "
+strSQL = strSQL & " NVL(a.int025,0) + NVL(a.int026,0) + NVL(a.int027,0) + NVL(a.int028,0) + NVL(a.int029,0) + NVL(a.int030,0) +    "
+strSQL = strSQL & " NVL(a.int031,0) + NVL(a.int032,0) + NVL(a.int033,0) + NVL(a.int034,0) + NVL(a.int035,0) + NVL(a.int036,0) +    "
+strSQL = strSQL & " NVL(a.int037,0) + NVL(a.int038,0) + NVL(a.int039,0) + NVL(a.int040,0) + NVL(a.int041,0) + NVL(a.int042,0) +    "
+strSQL = strSQL & " NVL(a.int043,0) + NVL(a.int044,0) + NVL(a.int045,0) + NVL(a.int046,0) + NVL(a.int047,0) + NVL(a.int048,0) +    "
+strSQL = strSQL & " NVL(a.int049,0) + NVL(a.int050,0) + NVL(a.int051,0) + NVL(a.int052,0) + NVL(a.int053,0) + NVL(a.int054,0) +    "
+strSQL = strSQL & " NVL(a.int055,0) + NVL(a.int056,0) + NVL(a.int057,0) + NVL(a.int058,0) + NVL(a.int059,0) + NVL(a.int060,0) +    "
+strSQL = strSQL & " NVL(a.int061,0) + NVL(a.int062,0) + NVL(a.int063,0) + NVL(a.int064,0) + NVL(a.int065,0) + NVL(a.int066,0) +    "
+strSQL = strSQL & " NVL(a.int067,0) + NVL(a.int068,0) + NVL(a.int069,0) + NVL(a.int070,0) + NVL(a.int071,0) + NVL(a.int072,0) +    "
+strSQL = strSQL & " NVL(a.int073,0) + NVL(a.int074,0) + NVL(a.int075,0) + NVL(a.int076,0) + NVL(a.int077,0) + NVL(a.int078,0) +    "
+strSQL = strSQL & " NVL(a.int079,0) + NVL(a.int080,0) + NVL(a.int081,0) + NVL(a.int082,0) + NVL(a.int083,0) + NVL(a.int084,0) +    "
+strSQL = strSQL & " NVL(a.int085,0) + NVL(a.int086,0) + NVL(a.int087,0) + NVL(a.int088,0) + NVL(a.int089,0) + NVL(a.int090,0) +    "
+strSQL = strSQL & " NVL(a.int091,0) + NVL(a.int092,0) + NVL(a.int093,0) + NVL(a.int094,0) + NVL(a.int095,0) + NVL(a.int096,0) +    "
+strSQL = strSQL & " NVL(a.int097,0) + NVL(a.int098,0) + NVL(a.int099,0) + NVL(a.int100,0) + NVL(a.int101,0) + NVL(a.int102,0) +    "
+strSQL = strSQL & " NVL(a.int103,0) + NVL(a.int104,0) + NVL(a.int105,0) + NVL(a.int106,0) + NVL(a.int107,0) + NVL(a.int108,0) +    "
+strSQL = strSQL & " NVL(a.int109,0) + NVL(a.int110,0) + NVL(a.int111,0) + NVL(a.int112,0) + NVL(a.int113,0) + NVL(a.int114,0) +    "
+strSQL = strSQL & " NVL(a.int115,0) + NVL(a.int116,0) + NVL(a.int117,0) + NVL(a.int118,0) + NVL(a.int119,0) + NVL(a.int120,0) +    "
+strSQL = strSQL & " NVL(a.int121,0) + NVL(a.int122,0) + NVL(a.int123,0) + NVL(a.int124,0) + NVL(a.int125,0) + NVL(a.int126,0) +    "
+strSQL = strSQL & " NVL(a.int127,0) + NVL(a.int128,0) + NVL(a.int129,0) + NVL(a.int130,0) + NVL(a.int131,0) + NVL(a.int132,0) +    "
+strSQL = strSQL & " NVL(a.int133,0) + NVL(a.int134,0) + NVL(a.int135,0) + NVL(a.int136,0) + NVL(a.int137,0) + NVL(a.int138,0) +    "
+strSQL = strSQL & " NVL(a.int139,0) + NVL(a.int140,0) + NVL(a.int141,0) + NVL(a.int142,0) + NVL(a.int143,0) + NVL(a.int144,0) +    "
+strSQL = strSQL & " NVL(a.int145,0) + NVL(a.int146,0) + NVL(a.int147,0) + NVL(a.int148,0) + NVL(a.int149,0) + NVL(a.int150,0) +    "
+strSQL = strSQL & " NVL(a.int151,0) + NVL(a.int152,0) + NVL(a.int153,0) + NVL(a.int154,0) + NVL(a.int155,0) + NVL(a.int156,0) +    "
+strSQL = strSQL & " NVL(a.int157,0) + NVL(a.int158,0) + NVL(a.int159,0) + NVL(a.int160,0) + NVL(a.int161,0) + NVL(a.int162,0) +    "
+strSQL = strSQL & " NVL(a.int163,0) + NVL(a.int164,0) + NVL(a.int165,0) + NVL(a.int166,0) + NVL(a.int167,0) + NVL(a.int168,0) +    "
+strSQL = strSQL & " NVL(a.int169,0) + NVL(a.int170,0) + NVL(a.int171,0) + NVL(a.int172,0) + NVL(a.int173,0) + NVL(a.int174,0) +    "
+strSQL = strSQL & " NVL(a.int175,0) + NVL(a.int176,0) + NVL(a.int177,0) + NVL(a.int178,0) + NVL(a.int179,0) + NVL(a.int180,0) +    "
+strSQL = strSQL & " NVL(a.int181,0) + NVL(a.int182,0) + NVL(a.int183,0) + NVL(a.int184,0) + NVL(a.int185,0) + NVL(a.int186,0) +    "
+strSQL = strSQL & " NVL(a.int187,0) + NVL(a.int188,0) + NVL(a.int189,0) + NVL(a.int190,0) + NVL(a.int191,0) + NVL(a.int192,0) +    "
+strSQL = strSQL & " NVL(a.int193,0) + NVL(a.int194,0) + NVL(a.int195,0) + NVL(a.int196,0) + NVL(a.int197,0) + NVL(a.int198,0) +    "
+strSQL = strSQL & " NVL(a.int199,0) + NVL(a.int200,0) + NVL(a.int201,0) + NVL(a.int202,0) + NVL(a.int203,0) + NVL(a.int204,0) +    "
+strSQL = strSQL & " NVL(a.int205,0) + NVL(a.int206,0) + NVL(a.int207,0) + NVL(a.int208,0) + NVL(a.int209,0) + NVL(a.int210,0) +    "
+strSQL = strSQL & " NVL(a.int211,0) + NVL(a.int212,0) + NVL(a.int213,0) + NVL(a.int214,0) + NVL(a.int215,0) + NVL(a.int216,0) +    "
+strSQL = strSQL & " NVL(a.int217,0) + NVL(a.int218,0) + NVL(a.int219,0) + NVL(a.int220,0) + NVL(a.int221,0) + NVL(a.int222,0) +    "
+strSQL = strSQL & " NVL(a.int223,0) + NVL(a.int224,0) + NVL(a.int225,0) + NVL(a.int226,0) + NVL(a.int227,0) + NVL(a.int228,0) +    "
+strSQL = strSQL & " NVL(a.int229,0) + NVL(a.int230,0) + NVL(a.int231,0) + NVL(a.int232,0) + NVL(a.int233,0) + NVL(a.int234,0) +    "
+strSQL = strSQL & " NVL(a.int235,0) + NVL(a.int236,0) + NVL(a.int237,0) + NVL(a.int238,0) + NVL(a.int239,0) + NVL(a.int240,0) +    "
+strSQL = strSQL & " NVL(a.int241,0) + NVL(a.int242,0) + NVL(a.int243,0) + NVL(a.int244,0) + NVL(a.int245,0) + NVL(a.int246,0) +    "
+strSQL = strSQL & " NVL(a.int247,0) + NVL(a.int248,0) + NVL(a.int249,0) + NVL(a.int250,0) + NVL(a.int251,0) + NVL(a.int252,0) +    "
+strSQL = strSQL & " NVL(a.int253,0) + NVL(a.int254,0) + NVL(a.int255,0) + NVL(a.int256,0) + NVL(a.int257,0) + NVL(a.int258,0) +    "
+strSQL = strSQL & " NVL(a.int259,0) + NVL(a.int260,0) + NVL(a.int261,0) + NVL(a.int262,0) + NVL(a.int263,0) + NVL(a.int264,0) +    "
+strSQL = strSQL & " NVL(a.int265,0) + NVL(a.int266,0) + NVL(a.int267,0) + NVL(a.int268,0) + NVL(a.int269,0) + NVL(a.int270,0) +    "
+strSQL = strSQL & " NVL(a.int271,0) + NVL(a.int272,0) + NVL(a.int273,0) + NVL(a.int274,0) + NVL(a.int275,0) + NVL(a.int276,0) +    "
+strSQL = strSQL & " NVL(a.int277,0) + NVL(a.int278,0) + NVL(a.int279,0) + NVL(a.int280,0) + NVL(a.int281,0) + NVL(a.int282,0) +    "
+strSQL = strSQL & " NVL(a.int283,0) + NVL(a.int284,0) + NVL(a.int285,0) + NVL(a.int286,0) + NVL(a.int287,0) + NVL(a.int288,0) +    "
+strSQL = strSQL & " NVL(a.int289,0) + NVL(a.int290,0) + NVL(a.int291,0) + NVL(a.int292,0) + NVL(a.int293,0) + NVL(a.int294,0) +    "
+strSQL = strSQL & " NVL(a.int295,0) + NVL(a.int296,0) + NVL(a.int297,0) + NVL(a.int298,0) + NVL(a.int299,0) + NVL(a.int300,0)   "
+strSQL = strSQL & " END AS TOTAL            "
+strSQL = strSQL & " , a.name  "
+strSQL = strSQL & " FROM billdeterminant a  "
+strSQL = strSQL & " WHERE a.name in ('BA_5M_RSRC_DA_SCHD@QUANTITY', "
+strSQL = strSQL & " 'BA_5M_RSRC_FMM_IIE_STLMT_RTPG@QUANTITY', "
+strSQL = strSQL & " 'BA_5M_RSRC_IIE@QUANTITY', "
+strSQL = strSQL & " 'BA_5M_RSRC_TOT_UIE@QUANTITY',  "
+strSQL = strSQL & " 'BA_5M_RSRC_METER_ENGY@QUANTITY',  "
+strSQL = strSQL & " 'RSRC_HRLY_DA_ENGY_LMP_NON_CONTRACT@AMOUNT',  "
+strSQL = strSQL & " 'BA_HRLY_DA_ENGY_CONTRACT@AMOUNT',  "
+strSQL = strSQL & " 'BA_5M_RSRC_FMM_IIE_STLMT@AMOUNT',  "
+strSQL = strSQL & " 'BA_5M_RSRC_IIE@AMOUNT',  "
+strSQL = strSQL & " 'BA_5M_RSRC_UIE@AMOUNT',  "
+strSQL = strSQL & " 'BA_5M_RSRC_ED_TYPE_EX_COST_IIE_STLMT@AMOUNT',  "
+strSQL = strSQL & " 'BA_5M_RSRC_EXCP_DISP@AMOUNT',  "
+strSQL = strSQL & " 'BA_DAY_RSRC_OR_MSS_IFM_BCR_STLMT@AMOUNT',  "
+strSQL = strSQL & " 'BA_DAY_RSRC_OR_MSS_BCR_STLMT@AMOUNT',  "
+strSQL = strSQL & " 'BA_HRLY_RSRC_DA_SPIN_STLMT@AMOUNT',  "
+strSQL = strSQL & " 'BA_5M_RSRC_NOPAY_SPIN_STLMT@AMOUNT',  "
+strSQL = strSQL & " 'BA_15M_RT_SPIN_STLMT@AMOUNT',  "
+strSQL = strSQL & " 'BA_HRLY_RSRC_DA_NSPN_STLMT@AMOUNT',  "
+strSQL = strSQL & " 'BA_5M_RSRC_NOPAY_NSPN_STLMT@AMOUNT',  "
+strSQL = strSQL & " 'BA_15M_RSRC_RT_NSPN_STLMT@AMOUNT',  "
+strSQL = strSQL & " 'BA_HRLY_RSRC_DA_REGUP@AMOUNT',  "
+strSQL = strSQL & " 'BA_5M_RSRC_NOPAY_REGUP@AMOUNT',  "
+strSQL = strSQL & " 'BA_15M_RSRC_RT_REGUP_STLMT@AMOUNT',  "
+strSQL = strSQL & " 'BA_HRLY_RSRC_DA_REGDOWN@AMOUNT',  "
+strSQL = strSQL & " 'BA_5M_RSRC_NOPAY_REGDOWN_STLMT@AMOUNT',  "
+strSQL = strSQL & " 'BA_15M_RSRC_RT_REGDOWN@AMOUNT',  "
+strSQL = strSQL & " 'BA_15M_RSRC_REGUP_MILEAGE_STLMT@AMOUNT',  "
+strSQL = strSQL & " 'BA_15M_RSRC_REGDOWN_MILEAGE_STLMT@AMOUNT',  "
+strSQL = strSQL & " 'BA_5M_RSRC_TOT_FR_FCAST_MVMT@AMOUNT',  "
+strSQL = strSQL & " 'BA_5M_RSRC_TOT_FRU_UNCERT_STLMT@AMOUNT',  "
+strSQL = strSQL & " 'BA_5M_RSRC_TOT_FRD_UNCERT_STLMT@AMOUNT',  "
+strSQL = strSQL & " 'BA_5M_RSRC_BAA_SUPPLY_FRU_UNCERT_ALLOC@AMOUNT',  "
+strSQL = strSQL & " 'BA_5M_RSRC_BAA_SUPPLY_FRD_UNCERT_ALLOC@AMOUNT')  "
+strSQL = strSQL & " AND a.attributevalue2 in ('PNCHEG_2_PL1X4','COCOPP_2_CTG1','COCOPP_2_CTG2','COCOPP_2_CTG3','COCOPP_2_CTG4','PNCHPP_1_PL1X2'  "
+strSQL = strSQL & " ,'KELSO_2_UNITS','GRNLF1_1_UNITS','BOGUE_1_UNITA1','OMAR_2_UNIT 1','OMAR_2_UNIT 2','OMAR_2_UNIT 3','OMAR_2_UNIT 4'  "
+strSQL = strSQL & " ,'LIVOAK_1_UNIT 1','CHALK_1_UNIT','BEARMT_1_UNIT','BDGRCK_1_UNITS','SMPRIP_1_SMPSON','GWFPWR_1_UNITS','MKTRCK_1_UNIT 1'  "
+strSQL = strSQL & " ,'GILRPP_1_PL1X2','LECEF_1_UNITS','SUNSET_2_UNITS','DOUBLC_1_UNITS','KERNFT_1_UNITS','SIERRA_1_UNITS','GILRPP_1_PL3X4'  "
+strSQL = strSQL & " ,'KNGCTY_6_UNITA1','LMBEPK_2_UNITA1','LMBEPK_2_UNITA2','LMBEPK_2_UNITA3','RVRVEW_1_UNITA1','WOLFSK_1_UNITA1','YUBACT_6_UNITA1'  "
+strSQL = strSQL & " ,'HENRTA_6_UNITA1','HENRTA_6_UNITA2','CALPIN_1_AGNEW','OROVIL_6_UNIT','RUSCTY_2_UNITS','SCHLTE_1_PL1X3','BASICE_2_UNITS' "
+strSQL = strSQL & " , 'CROKET_7_UNIT', 'GRNLF2_1_UNIT', 'DISCOV_1_CHEVRN')                 "
+strSQL = strSQL & " AND a.messageheaderid in (select MESSAGEHEADERID from date_details))    "
+strSQL = strSQL & " UNION ALL  "
+strSQL = strSQL & " (SELECT /*+PARALLEL_INDEX(a, 50)*/ a.attributevalue2 as resource_name  "
+strSQL = strSQL & " , 'GEN' AS resource_type  "
+strSQL = strSQL & " , NVL(a.int001,0) + NVL(a.int002,0) + NVL(a.int003,0) + NVL(a.int004,0) + NVL(a.int005,0) + NVL(a.int006,0) +    "
+strSQL = strSQL & " NVL(a.int007,0) + NVL(a.int008,0) + NVL(a.int009,0) + NVL(a.int010,0) + NVL(a.int011,0) + NVL(a.int012,0) +    "
+strSQL = strSQL & " NVL(a.int013,0) + NVL(a.int014,0) + NVL(a.int015,0) + NVL(a.int016,0) + NVL(a.int017,0) + NVL(a.int018,0) +    "
+strSQL = strSQL & " NVL(a.int019,0) + NVL(a.int020,0) + NVL(a.int021,0) + NVL(a.int022,0) + NVL(a.int023,0) + NVL(a.int024,0) +    "
+strSQL = strSQL & " NVL(a.int025,0) + NVL(a.int026,0) + NVL(a.int027,0) + NVL(a.int028,0) + NVL(a.int029,0) + NVL(a.int030,0) +    "
+strSQL = strSQL & " NVL(a.int031,0) + NVL(a.int032,0) + NVL(a.int033,0) + NVL(a.int034,0) + NVL(a.int035,0) + NVL(a.int036,0) +    "
+strSQL = strSQL & " NVL(a.int037,0) + NVL(a.int038,0) + NVL(a.int039,0) + NVL(a.int040,0) + NVL(a.int041,0) + NVL(a.int042,0) +    "
+strSQL = strSQL & " NVL(a.int043,0) + NVL(a.int044,0) + NVL(a.int045,0) + NVL(a.int046,0) + NVL(a.int047,0) + NVL(a.int048,0) +    "
+strSQL = strSQL & " NVL(a.int049,0) + NVL(a.int050,0) + NVL(a.int051,0) + NVL(a.int052,0) + NVL(a.int053,0) + NVL(a.int054,0) +    "
+strSQL = strSQL & " NVL(a.int055,0) + NVL(a.int056,0) + NVL(a.int057,0) + NVL(a.int058,0) + NVL(a.int059,0) + NVL(a.int060,0) +    "
+strSQL = strSQL & " NVL(a.int061,0) + NVL(a.int062,0) + NVL(a.int063,0) + NVL(a.int064,0) + NVL(a.int065,0) + NVL(a.int066,0) +    "
+strSQL = strSQL & " NVL(a.int067,0) + NVL(a.int068,0) + NVL(a.int069,0) + NVL(a.int070,0) + NVL(a.int071,0) + NVL(a.int072,0) +    "
+strSQL = strSQL & " NVL(a.int073,0) + NVL(a.int074,0) + NVL(a.int075,0) + NVL(a.int076,0) + NVL(a.int077,0) + NVL(a.int078,0) +    "
+strSQL = strSQL & " NVL(a.int079,0) + NVL(a.int080,0) + NVL(a.int081,0) + NVL(a.int082,0) + NVL(a.int083,0) + NVL(a.int084,0) +    "
+strSQL = strSQL & " NVL(a.int085,0) + NVL(a.int086,0) + NVL(a.int087,0) + NVL(a.int088,0) + NVL(a.int089,0) + NVL(a.int090,0) +    "
+strSQL = strSQL & " NVL(a.int091,0) + NVL(a.int092,0) + NVL(a.int093,0) + NVL(a.int094,0) + NVL(a.int095,0) + NVL(a.int096,0) +    "
+strSQL = strSQL & " NVL(a.int097,0) + NVL(a.int098,0) + NVL(a.int099,0) + NVL(a.int100,0) + NVL(a.int101,0) + NVL(a.int102,0) +    "
+strSQL = strSQL & " NVL(a.int103,0) + NVL(a.int104,0) + NVL(a.int105,0) + NVL(a.int106,0) + NVL(a.int107,0) + NVL(a.int108,0) +    "
+strSQL = strSQL & " NVL(a.int109,0) + NVL(a.int110,0) + NVL(a.int111,0) + NVL(a.int112,0) + NVL(a.int113,0) + NVL(a.int114,0) +    "
+strSQL = strSQL & " NVL(a.int115,0) + NVL(a.int116,0) + NVL(a.int117,0) + NVL(a.int118,0) + NVL(a.int119,0) + NVL(a.int120,0) +    "
+strSQL = strSQL & " NVL(a.int121,0) + NVL(a.int122,0) + NVL(a.int123,0) + NVL(a.int124,0) + NVL(a.int125,0) + NVL(a.int126,0) +    "
+strSQL = strSQL & " NVL(a.int127,0) + NVL(a.int128,0) + NVL(a.int129,0) + NVL(a.int130,0) + NVL(a.int131,0) + NVL(a.int132,0) +    "
+strSQL = strSQL & " NVL(a.int133,0) + NVL(a.int134,0) + NVL(a.int135,0) + NVL(a.int136,0) + NVL(a.int137,0) + NVL(a.int138,0) +    "
+strSQL = strSQL & " NVL(a.int139,0) + NVL(a.int140,0) + NVL(a.int141,0) + NVL(a.int142,0) + NVL(a.int143,0) + NVL(a.int144,0) +    "
+strSQL = strSQL & " NVL(a.int145,0) + NVL(a.int146,0) + NVL(a.int147,0) + NVL(a.int148,0) + NVL(a.int149,0) + NVL(a.int150,0) +    "
+strSQL = strSQL & " NVL(a.int151,0) + NVL(a.int152,0) + NVL(a.int153,0) + NVL(a.int154,0) + NVL(a.int155,0) + NVL(a.int156,0) +    "
+strSQL = strSQL & " NVL(a.int157,0) + NVL(a.int158,0) + NVL(a.int159,0) + NVL(a.int160,0) + NVL(a.int161,0) + NVL(a.int162,0) +    "
+strSQL = strSQL & " NVL(a.int163,0) + NVL(a.int164,0) + NVL(a.int165,0) + NVL(a.int166,0) + NVL(a.int167,0) + NVL(a.int168,0) +    "
+strSQL = strSQL & " NVL(a.int169,0) + NVL(a.int170,0) + NVL(a.int171,0) + NVL(a.int172,0) + NVL(a.int173,0) + NVL(a.int174,0) +    "
+strSQL = strSQL & " NVL(a.int175,0) + NVL(a.int176,0) + NVL(a.int177,0) + NVL(a.int178,0) + NVL(a.int179,0) + NVL(a.int180,0) +    "
+strSQL = strSQL & " NVL(a.int181,0) + NVL(a.int182,0) + NVL(a.int183,0) + NVL(a.int184,0) + NVL(a.int185,0) + NVL(a.int186,0) +    "
+strSQL = strSQL & " NVL(a.int187,0) + NVL(a.int188,0) + NVL(a.int189,0) + NVL(a.int190,0) + NVL(a.int191,0) + NVL(a.int192,0) +    "
+strSQL = strSQL & " NVL(a.int193,0) + NVL(a.int194,0) + NVL(a.int195,0) + NVL(a.int196,0) + NVL(a.int197,0) + NVL(a.int198,0) +    "
+strSQL = strSQL & " NVL(a.int199,0) + NVL(a.int200,0) + NVL(a.int201,0) + NVL(a.int202,0) + NVL(a.int203,0) + NVL(a.int204,0) +    "
+strSQL = strSQL & " NVL(a.int205,0) + NVL(a.int206,0) + NVL(a.int207,0) + NVL(a.int208,0) + NVL(a.int209,0) + NVL(a.int210,0) +    "
+strSQL = strSQL & " NVL(a.int211,0) + NVL(a.int212,0) + NVL(a.int213,0) + NVL(a.int214,0) + NVL(a.int215,0) + NVL(a.int216,0) +    "
+strSQL = strSQL & " NVL(a.int217,0) + NVL(a.int218,0) + NVL(a.int219,0) + NVL(a.int220,0) + NVL(a.int221,0) + NVL(a.int222,0) +    "
+strSQL = strSQL & " NVL(a.int223,0) + NVL(a.int224,0) + NVL(a.int225,0) + NVL(a.int226,0) + NVL(a.int227,0) + NVL(a.int228,0) +    "
+strSQL = strSQL & " NVL(a.int229,0) + NVL(a.int230,0) + NVL(a.int231,0) + NVL(a.int232,0) + NVL(a.int233,0) + NVL(a.int234,0) +    "
+strSQL = strSQL & " NVL(a.int235,0) + NVL(a.int236,0) + NVL(a.int237,0) + NVL(a.int238,0) + NVL(a.int239,0) + NVL(a.int240,0) +    "
+strSQL = strSQL & " NVL(a.int241,0) + NVL(a.int242,0) + NVL(a.int243,0) + NVL(a.int244,0) + NVL(a.int245,0) + NVL(a.int246,0) +    "
+strSQL = strSQL & " NVL(a.int247,0) + NVL(a.int248,0) + NVL(a.int249,0) + NVL(a.int250,0) + NVL(a.int251,0) + NVL(a.int252,0) +    "
+strSQL = strSQL & " NVL(a.int253,0) + NVL(a.int254,0) + NVL(a.int255,0) + NVL(a.int256,0) + NVL(a.int257,0) + NVL(a.int258,0) +    "
+strSQL = strSQL & " NVL(a.int259,0) + NVL(a.int260,0) + NVL(a.int261,0) + NVL(a.int262,0) + NVL(a.int263,0) + NVL(a.int264,0) +    "
+strSQL = strSQL & " NVL(a.int265,0) + NVL(a.int266,0) + NVL(a.int267,0) + NVL(a.int268,0) + NVL(a.int269,0) + NVL(a.int270,0) +    "
+strSQL = strSQL & " NVL(a.int271,0) + NVL(a.int272,0) + NVL(a.int273,0) + NVL(a.int274,0) + NVL(a.int275,0) + NVL(a.int276,0) +    "
+strSQL = strSQL & " NVL(a.int277,0) + NVL(a.int278,0) + NVL(a.int279,0) + NVL(a.int280,0) + NVL(a.int281,0) + NVL(a.int282,0) +    "
+strSQL = strSQL & " NVL(a.int283,0) + NVL(a.int284,0) + NVL(a.int285,0) + NVL(a.int286,0) + NVL(a.int287,0) + NVL(a.int288,0) +    "
+strSQL = strSQL & " NVL(a.int289,0) + NVL(a.int290,0) + NVL(a.int291,0) + NVL(a.int292,0) + NVL(a.int293,0) + NVL(a.int294,0) +    "
+strSQL = strSQL & " NVL(a.int295,0) + NVL(a.int296,0) + NVL(a.int297,0) + NVL(a.int298,0) + NVL(a.int299,0) + NVL(a.int300,0) AS TOTAL  "
+strSQL = strSQL & " , a.name   "
+strSQL = strSQL & " FROM billdeterminant a  "
+strSQL = strSQL & " WHERE a.messageheaderid in (select MESSAGEHEADERID from date_details)   "
+strSQL = strSQL & " AND a.name IN ('BA_MTH_RSRC_TOT_RAAIM_INCV_STLMT@AMOUNT','BA_MTH_RSRC_TOT_RAAIM_NON_AVAIL_STLMT@AMOUNT','BA_MTH_RSRC_BAA_OFFP_SUPPLY_FRD_UNCERT_ALLOC@AMOUNT',   "
+strSQL = strSQL & " 'BA_MTH_RSRC_BAA_PEAK_SUPPLY_FRD_UNCERT_ALLOC@AMOUNT','BA_MTH_RSRC_BAA_OFFP_SUPPLY_FRU_UNCERT_ALLOC@AMOUNT','BA_MTH_RSRC_BAA_PEAK_SUPPLY_FRU_UNCERT_ALLOC@AMOUNT')   "
+strSQL = strSQL & " AND a.attributevalue2 in ('PNCHEG_2_PL1X4','COCOPP_2_CTG1','COCOPP_2_CTG2','COCOPP_2_CTG3','COCOPP_2_CTG4','PNCHPP_1_PL1X2'  "
+strSQL = strSQL & " ,'KELSO_2_UNITS','GRNLF1_1_UNITS','BOGUE_1_UNITA1','OMAR_2_UNIT 1','OMAR_2_UNIT 2','OMAR_2_UNIT 3','OMAR_2_UNIT 4'  "
+strSQL = strSQL & " ,'LIVOAK_1_UNIT 1','CHALK_1_UNIT','BEARMT_1_UNIT','BDGRCK_1_UNITS','SMPRIP_1_SMPSON','GWFPWR_1_UNITS','MKTRCK_1_UNIT 1'  "
+strSQL = strSQL & " ,'GILRPP_1_PL1X2','LECEF_1_UNITS','SUNSET_2_UNITS','DOUBLC_1_UNITS','KERNFT_1_UNITS','SIERRA_1_UNITS','GILRPP_1_PL3X4'  "
+strSQL = strSQL & " ,'KNGCTY_6_UNITA1','LMBEPK_2_UNITA1','LMBEPK_2_UNITA2','LMBEPK_2_UNITA3','RVRVEW_1_UNITA1','WOLFSK_1_UNITA1','YUBACT_6_UNITA1'  "
+strSQL = strSQL & " ,'HENRTA_6_UNITA1','HENRTA_6_UNITA2','CALPIN_1_AGNEW','OROVIL_6_UNIT','RUSCTY_2_UNITS','SCHLTE_1_PL1X3','BASICE_2_UNITS' "
+strSQL = strSQL & " ,'CROKET_7_UNIT', 'GRNLF2_1_UNIT', 'DISCOV_1_CHEVRN')))  "
+strSQL = strSQL & " GROUP BY RESOURCE_NAME, RESOURCE_TYPE, name)  "
+strSQL = strSQL & " GROUP BY AREA, RESOURCE_NAME, RESOURCE_TYPE, PRIORITY  "
+strSQL = strSQL & " ORDER BY PRIORITY  "
+
+
+'Set Object to Run SQL Statement'
+Set OraDynaset = objdatabase.DBCreateDynaset(strSQL, 0)
+
+'Adjust Placement(for both x and y, i.e. (x+1)'
+If OraDynaset.RecordCount > 0 Then
+    OraDynaset.MoveFirst
+    For X = 0 To OraDynaset.Fields.Count - 1
+        Cells(1, X + 1) = OraDynaset.Fields(X).Name
+        Cells(1, X + 1).Font.Bold = True '
+    Next
+    
+    For y = 0 To OraDynaset.RecordCount - 1
+        For X = 0 To OraDynaset.Fields.Count - 1
+            Cells(y + 46, X + 1) = OraDynaset.Fields(X).Value
+        Next
+        OraDynaset.MoveNext
+    Next
+End If
+'END SETTLEMENTS RUN'
+
+
+'Refresh ALL the Pivot Tables in the workbook
+For Each Worksheet In ActiveWorkbook.Worksheets
+    For Each PivotTable In Worksheet.PivotTables
+        PivotTable.RefreshTable
+    Next PivotTable
+Next Worksheet
+
+'Copy and Paste Data on Report'
+Sheets("Energy Pivot").Range("C3:V51").Copy
+Sheets("Energy Settlements").Range("D6").PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks:=False, Transpose:=False
+
+' Report Title
+If input_StartDate = input_EndDate Then
+    Worksheets("Energy Settlements").Range("A1") = "Contracted Units Generation Settlements Report: " & Format(input_StartDate, "mmmm-yyyy")
+    relativePath = ThisWorkbook.Path & "\CUG Settlements Report " & Format(input_StartDate, "mmmm-yyyy")
+Else
+    Worksheets("Energy Settlements").Range("A1") = "Contracted Units Generation Settlements Report: " & Format(input_StartDate, "mmmm-yyyy") & " to " & Format(input_EndDate, "mmmm-yyyy")
+    relativePath = ThisWorkbook.Path & "\CUG Settlements Report " & Format(input_StartDate, "mmmm-yyyy") & " to " & Format(input_EndDate, "mmmm-yyyy")
+End If
+
+
+' Copy data to a new workbook
+Dim ws As Worksheet
+Dim wb As Workbook
+Set wb = Application.Workbooks.Add
+
+For Each ws In ThisWorkbook.Worksheets 'SetVersions
+    If ws.Name <> "Energy Pivot" And ws.Name <> "Settlements Data" Then
+        ws.Copy Before:=wb.Sheets("Sheet1")
+    End If
+Next ws
+
+'New Workbook formatting
+wb.Sheets("Sheet1").Delete
+wb.Sheets("Sheet2").Delete
+wb.Sheets("Sheet3").Delete
+
+wb.Sheets("Energy Settlements").Select
+wb.Sheets("Energy Settlements").Range("A1").Select
+
+' new file name and saving
+wb.SaveAs relativePath & ".xlsx"
+wb.Close SaveChanges:=True
+
+
+'Screen updating and alerts On
+Application.DisplayAlerts = True
+Application.ScreenUpdating = True
+
+
+End Sub
+Private Sub cmdCancel_Click()
+    Unload Me
+End Sub
+
