@@ -1,42 +1,24 @@
-# Power Plant Market Results Reports
 
-This report template summarizes power plant financial settlements by market and product category. The template utilizes Excel, Visual Basic, and SQL to aggregate five minute interval data, and it extracts a clean Excel file which is to be sent to Power Generation leadership.
+# Power Plant Market Results Reports (UOG + CUG)
+## Overview
+The UOG and CUG Settlements Results templates summarize all power plants' financial/commodity settlements in the CAISO market by product categories. The template automatically aggregates one month's worth of five minute interval data utilizing Visual Basic and SQL. The template runs within 10 minutes, whereas original versions were multi-day efforts. The template also downloads a clean Excel file to be reviewed by power generation, procurement, and policy leadership, as well as  our team.
 
-## Getting Started
+UOG - Utility Owned Generation<br />
+CUG - Contracted Units Generation
 
-This project is for demonstration purposes only. This code cannot not be fully run without authorization and connection to the network. Functional aspects within Visual Basic and Excel may be repurposed for general use.
+This report helped me identify consistent losses of $50K per month at one power plant. Further analysis of the minute by minute transactions led to the discovery of a discrepancy between a power plant's operational meter and CAISO financial meter. Both meters were synchronized, resulting in a savings of $600K per year.
 
-### What is it?
+This code cannot not be fully run without authorization and connection to the network. Functional aspects within Visual Basic code may be repurposed for general use.
 
-![Full view of Template](../master/CUG%20Report.PNG)
-```
-Give examples
-```
+## Files
+CUG Settlements Query.sql - SQL code used in the tool. <br />
+CUG Code - Complete code for the VBA Tool, includes SQL implementation. <br />
+CUG Settlements Report Template.xlsm - Complete VBA tool. 
 
-### Why is it cool?
+UOG Energy Query.sql - SQL code used in the tool. <br />
+UOG Code - Complete code for the VBA Tool, includes SQL implementation. <br />
+UOG Settlements Report - Complete VBA tool. 
 
-A step by step series of examples that tell you how to get a development env running
-
-Say what the step will be
-
-```
-Give the example
-```
-
-And repeat
-
-```
-until finished
-```
-
-End with an example of getting some data out of the system or using it for a little demo
-
-
-## Authors
-
-* **Joshua Chemparathy** - *Initial work*
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
-
+## Quick View of Report/UI
+![reportexample](../master/CUG%20Report.png)
+![reportexample](../master/Report%20Parameters.png)
